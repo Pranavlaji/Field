@@ -7,7 +7,7 @@ import { createResizeHandler, type ResizeHandler } from '../lib/resizeHandler';
 import { createPasteHandler, type PasteHandler } from '../lib/pasteHandler';
 import { Card } from './Card';
 import { Menu } from './Menu';
-import { DarkModeToggle } from './DarkModeToggle';
+import { FontSizeControl } from './FontSizeControl';
 import { v4 as uuidv4 } from 'uuid';
 import type { Card as CardType } from '../types';
 
@@ -206,7 +206,7 @@ export function Canvas() {
             )}
 
             <Menu />
-            <DarkModeToggle />
+            <FontSizeControl selectedCard={cards.find(c => c.id === selectedCardId) || null} />
         </div>
     );
 }

@@ -34,23 +34,37 @@ function fileToDataUrl(file: File | Blob): Promise<string> {
 }
 
 // Get image dimensions from data URL
-function getImageDimensions(dataUrl: string): Promise<{ w: number; h: number }> {
+// Returns both natural size (for scaling calculations) and initial display size (constrained)
+function getImageDimensions(dataUrl: string): Promise<{
+    naturalSize: { w: number; h: number };
+    displaySize: { w: number; h: number };
+}> {
     return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
-            // Constrain to max dimensions
-            let w = img.naturalWidth;
-            let h = img.naturalHeight;
+            const naturalW = img.naturalWidth;
+            const naturalH = img.naturalHeight;
+
+            // Constrain initial display to max dimensions
+            let displayW = naturalW;
+            let displayH = naturalH;
             const maxW = 500;
             const maxH = 400;
-            if (w > maxW || h > maxH) {
-                const ratio = Math.min(maxW / w, maxH / h);
-                w = Math.round(w * ratio);
-                h = Math.round(h * ratio);
+            if (displayW > maxW || displayH > maxH) {
+                const ratio = Math.min(maxW / displayW, maxH / displayH);
+                displayW = Math.round(displayW * ratio);
+                displayH = Math.round(displayH * ratio);
             }
-            resolve({ w, h });
+
+            resolve({
+                naturalSize: { w: naturalW, h: naturalH },
+                displaySize: { w: displayW, h: displayH },
+            });
         };
-        img.onerror = () => resolve({ w: 300, h: 200 }); // Fallback size
+        img.onerror = () => resolve({
+            naturalSize: { w: 300, h: 200 },
+            displaySize: { w: 300, h: 200 },
+        });
         img.src = dataUrl;
     });
 }
@@ -84,13 +98,14 @@ export function createPasteHandler(
                     e.preventDefault();
                     fileToDataUrl(file)
                         .then(async (dataUrl) => {
-                            const size = await getImageDimensions(dataUrl);
+                            const { naturalSize, displaySize } = await getImageDimensions(dataUrl);
                             const card: Card = {
                                 id: uuidv4(),
                                 type: 'image',
                                 content: dataUrl,
                                 position: { x: canvasPos.x, y: canvasPos.y },
-                                size,
+                                size: displaySize,
+                                naturalSize,
                                 createdAt: Date.now(),
                             };
                             onPaste(card);
@@ -111,13 +126,14 @@ export function createPasteHandler(
                     if (blob) {
                         fileToDataUrl(blob)
                             .then(async (dataUrl) => {
-                                const size = await getImageDimensions(dataUrl);
+                                const { naturalSize, displaySize } = await getImageDimensions(dataUrl);
                                 const card: Card = {
                                     id: uuidv4(),
                                     type: 'image',
                                     content: dataUrl,
                                     position: { x: canvasPos.x, y: canvasPos.y },
-                                    size,
+                                    size: displaySize,
+                                    naturalSize,
                                     createdAt: Date.now(),
                                 };
                                 onPaste(card);
@@ -171,13 +187,14 @@ export function createPasteHandler(
                 const pos = { ...canvasPos };
                 fileToDataUrl(file)
                     .then(async (dataUrl) => {
-                        const size = await getImageDimensions(dataUrl);
+                        const { naturalSize, displaySize } = await getImageDimensions(dataUrl);
                         const card: Card = {
                             id: uuidv4(),
                             type: 'image',
                             content: dataUrl,
                             position: pos,
-                            size,
+                            size: displaySize,
+                            naturalSize,
                             createdAt: Date.now(),
                         };
                         onPaste(card);

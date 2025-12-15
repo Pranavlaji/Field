@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useCardStore } from '../store/cardStore';
+import { useThemeStore } from '../store/themeStore';
 
 export function Menu() {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const clearAll = useCardStore((s) => s.clearAll);
     const cardCount = useCardStore((s) => s.cards.length);
+    const { isDark, toggle: toggleDark } = useThemeStore();
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -27,6 +29,10 @@ export function Menu() {
         setIsOpen(false);
     };
 
+    const handleToggleDark = () => {
+        toggleDark();
+    };
+
     return (
         <div className="menu" ref={menuRef}>
             <button
@@ -41,6 +47,9 @@ export function Menu() {
 
             {isOpen && (
                 <div className="menu-dropdown">
+                    <button className="menu-item" onClick={handleToggleDark}>
+                        {isDark ? '☀️ Light mode' : '🌙 Dark mode'}
+                    </button>
                     <button
                         className="menu-item"
                         onClick={handleClearAll}

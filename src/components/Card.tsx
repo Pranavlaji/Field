@@ -101,6 +101,25 @@ export const Card = memo(function Card({
         ...(card.size ? { width: card.size.w, height: card.size.h } : {}),
     };
 
+    // Calculate image scale factor from current size / natural size  
+    // This allows scaling beyond 100% of original image size
+    const getImageStyle = (): React.CSSProperties | undefined => {
+        if (card.type !== 'image' || !card.size || !card.naturalSize) return undefined;
+        const scaleX = card.size.w / card.naturalSize.w;
+        const scaleY = card.size.h / card.naturalSize.h;
+        return {
+            transformOrigin: 'top left',
+            transform: `scale(${scaleX}, ${scaleY})`,
+            width: card.naturalSize.w,
+            height: card.naturalSize.h,
+        };
+    };
+
+    // Text card styles with per-card font size
+    const getTextStyle = (): React.CSSProperties => {
+        return card.fontSize ? { fontSize: card.fontSize } : {};
+    };
+
     const className = `card card-${card.type}${isSelected ? ' card-selected' : ''}`;
 
     return (
@@ -121,9 +140,10 @@ export const Card = memo(function Card({
                         onBlur={handleTextBlur}
                         onKeyDown={handleKeyDown}
                         placeholder="Type something..."
+                        style={getTextStyle()}
                     />
                 ) : (
-                    <div className="card-text">
+                    <div className="card-text" style={getTextStyle()}>
                         {card.content || <span className="card-placeholder-text">Empty card</span>}
                     </div>
                 )
@@ -135,6 +155,7 @@ export const Card = memo(function Card({
                     alt=""
                     className="card-image"
                     draggable={false}
+                    style={getImageStyle()}
                     onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
                         const parent = (e.target as HTMLElement).parentElement;

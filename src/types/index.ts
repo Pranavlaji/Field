@@ -4,7 +4,9 @@ export interface Card {
   type: 'text' | 'image' | 'link';
   content: string; // text content, image data URL, or URL
   position: { x: number; y: number };
-  size?: { w: number; h: number }; // Only persisted when explicitly resized
+  size?: { w: number; h: number }; // Card dimensions (for resized cards)
+  naturalSize?: { w: number; h: number }; // Original image dimensions (images only)
+  fontSize?: number; // Font size in pixels (text cards only)
   createdAt: number;
 }
 
