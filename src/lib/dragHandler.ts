@@ -40,8 +40,7 @@ export function createDragHandler(
         initialTransformX = transform.x;
         initialTransformY = transform.y;
 
-        // Lift shadow effect
-        element.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.12)';
+        // Lift z-index during drag
         element.style.zIndex = '1000';
     }
 
@@ -62,8 +61,7 @@ export function createDragHandler(
     function handleMouseUp() {
         if (!isDragging || !currentElement || !currentCardId) return;
 
-        // Reset shadow
-        currentElement.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.08)';
+        // Reset z-index
         currentElement.style.zIndex = '';
 
         // Get final position

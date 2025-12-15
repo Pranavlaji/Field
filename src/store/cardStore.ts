@@ -6,11 +6,12 @@ interface CardStore {
     cards: Card[];
     isHydrated: boolean;
 
-    // Actions - only for creation, deletion, and final position commits
+    // Actions - only for creation, deletion, and final commits
     hydrate: () => Promise<void>;
     addCard: (card: Card) => void;
     updateCardPosition: (id: string, x: number, y: number) => void;
     updateCardSize: (id: string, w: number, h: number) => void;
+    updateCardContent: (id: string, content: string) => void;
     removeCard: (id: string) => void;
     clearAll: () => void;
 }
@@ -48,6 +49,18 @@ export const useCardStore = create<CardStore>((set, get) => ({
         const card = cards.find((c) => c.id === id);
         if (card) {
             const updated = { ...card, size: { w, h } };
+            set((state) => ({
+                cards: state.cards.map((c) => (c.id === id ? updated : c)),
+            }));
+            saveCard(updated);
+        }
+    },
+
+    updateCardContent: (id: string, content: string) => {
+        const cards = get().cards;
+        const card = cards.find((c) => c.id === id);
+        if (card) {
+            const updated = { ...card, content };
             set((state) => ({
                 cards: state.cards.map((c) => (c.id === id ? updated : c)),
             }));

@@ -1,6 +1,7 @@
 export interface ResizeHandler {
     register: (element: HTMLElement, cardId: string) => void;
     unregister: (cardId: string) => void;
+    setSelected: (cardId: string | null) => void;
     destroy: () => void;
 }
 
@@ -9,6 +10,9 @@ export function createResizeHandler(
     getScale: () => number
 ): ResizeHandler {
     const registeredElements = new Map<string, HTMLElement>();
+    const handleElements = new Map<string, HTMLElement>();
+    let selectedCardId: string | null = null;
+
     let isResizing = false;
     let currentCardId: string | null = null;
     let currentElement: HTMLElement | null = null;
@@ -33,7 +37,6 @@ export function createResizeHandler(
         initialWidth = rect.width / scale;
         initialHeight = rect.height / scale;
 
-        // Add resizing class
         cardElement.classList.add('is-resizing');
     }
 
@@ -44,8 +47,9 @@ export function createResizeHandler(
         const dx = e.clientX / scale - startX;
         const dy = e.clientY / scale - startY;
 
-        const newWidth = Math.max(100, initialWidth + dx);
-        const newHeight = Math.max(50, initialHeight + dy);
+        // Bottom-right resize: grow/shrink from top-left anchor
+        const newWidth = Math.max(60, initialWidth + dx);
+        const newHeight = Math.max(30, initialHeight + dy);
 
         // Direct DOM manipulation
         currentElement.style.width = `${newWidth}px`;
@@ -74,41 +78,61 @@ export function createResizeHandler(
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
 
+    function updateHandleVisibility(cardId: string) {
+        const handle = handleElements.get(cardId);
+        if (handle) {
+            const isSelected = cardId === selectedCardId;
+            handle.style.display = isSelected ? 'block' : 'none';
+        }
+    }
+
     function register(cardElement: HTMLElement, cardId: string) {
-        // Create resize handle
+        // Create single resize handle at bottom-right
         const handle = document.createElement('div');
         handle.className = 'resize-handle';
-        cardElement.appendChild(handle);
 
         const handler = (e: MouseEvent) => handleResizeStart(e, cardId, cardElement);
         handle.addEventListener('mousedown', handler);
+        (handle as any).__resizeHandler = handler;
 
-        (handle as unknown as { __resizeHandler: (e: MouseEvent) => void }).__resizeHandler = handler;
+        cardElement.appendChild(handle);
+        handleElements.set(cardId, handle);
         registeredElements.set(cardId, cardElement);
+
+        // Initially hidden
+        handle.style.display = 'none';
     }
 
     function unregister(cardId: string) {
-        const cardElement = registeredElements.get(cardId);
-        if (cardElement) {
-            const handle = cardElement.querySelector('.resize-handle');
-            if (handle) {
-                const handler = (handle as unknown as { __resizeHandler?: (e: MouseEvent) => void }).__resizeHandler;
-                if (handler) {
-                    handle.removeEventListener('mousedown', handler as EventListener);
-                }
-                handle.remove();
+        const handle = handleElements.get(cardId);
+        if (handle) {
+            const handler = (handle as any).__resizeHandler;
+            if (handler) {
+                handle.removeEventListener('mousedown', handler);
             }
-            registeredElements.delete(cardId);
+            handle.remove();
+            handleElements.delete(cardId);
         }
+        registeredElements.delete(cardId);
+    }
+
+    function setSelected(cardId: string | null) {
+        const previousId = selectedCardId;
+        selectedCardId = cardId;
+
+        if (previousId) updateHandleVisibility(previousId);
+        if (cardId) updateHandleVisibility(cardId);
     }
 
     return {
         register,
         unregister,
+        setSelected,
         destroy: () => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
-            registeredElements.forEach((_, cardId) => unregister(cardId));
+            handleElements.forEach((handle) => handle.remove());
+            handleElements.clear();
             registeredElements.clear();
         },
     };

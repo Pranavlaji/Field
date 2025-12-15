@@ -31,7 +31,6 @@ body {
   overflow: hidden;
   cursor: default;
   touch-action: none;
-  /* Prevent browser handling of touch gestures */
 }
 
 /* Transformed layer - GPU accelerated */
@@ -43,24 +42,17 @@ body {
   will-change: transform;
 }
 
-/* Cards - positioned via transform, not top/left */
+/* Cards - invisible by default */
 .card {
   position: absolute;
   top: 0;
   left: 0;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  background: transparent;
+  border: none;
+  box-shadow: none;
   cursor: grab;
   will-change: transform;
   user-select: none;
-  animation: fadeIn 120ms ease-out;
-  transition: box-shadow 120ms ease;
-  overflow: hidden;
-}
-
-.card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .card:active {
@@ -68,50 +60,49 @@ body {
 }
 
 .card.is-resizing {
-  cursor: se-resize;
+  cursor: nwse-resize;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
+/* Selection outline - simple border with corner brackets */
+.card-selected {
+  outline: 1px solid rgba(60, 60, 60, 0.4);
+  outline-offset: 2px;
 }
 
-/* Text card - wider min-width for horizontal layout */
+/* Text card - content determines size */
 .card-text {
-  padding: 16px 20px;
+  padding: 12px 16px;
   font-size: 14px;
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
-  min-width: 200px;
-  max-width: 500px;
+  min-width: 80px;
+  min-height: 24px;
 }
 
-/* Image card */
+/* Image card - natural size with max constraints */
 .card-image {
   display: block;
   max-width: 600px;
   max-height: 500px;
-  width: auto;
-  height: auto;
-  border-radius: 8px;
+}
+
+/* When card has explicit size, image fills it */
+.card[style*="width"] .card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 /* Link card */
 .card-link {
   display: block;
-  padding: 16px 20px;
+  padding: 12px 16px;
   font-size: 13px;
   color: #4a6fa5;
   text-decoration: none;
   word-break: break-all;
-  min-width: 200px;
-  max-width: 450px;
+  min-width: 100px;
 }
 
 .card-link:hover {
@@ -125,31 +116,26 @@ body {
   font-size: 13px;
 }
 
-/* Resize handle */
+/* Single resize handle at bottom-right */
 .resize-handle {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 16px;
-  height: 16px;
-  cursor: se-resize;
-  opacity: 0;
-  transition: opacity 150ms ease;
+  right: -4px;
+  bottom: -4px;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+  display: none;
+  z-index: 10;
 }
 
 .resize-handle::before {
   content: '';
   position: absolute;
-  right: 4px;
-  bottom: 4px;
-  width: 8px;
-  height: 8px;
-  border-right: 2px solid #ccc;
-  border-bottom: 2px solid #ccc;
-}
-
-.card:hover .resize-handle {
-  opacity: 1;
+  top: 3px;
+  left: 3px;
+  width: 6px;
+  height: 6px;
+  background: rgba(60, 60, 60, 0.6);
 }
 
 /* Hint text */
@@ -209,7 +195,6 @@ body {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
   padding: 4px;
   min-width: 140px;
-  animation: fadeIn 120ms ease-out;
 }
 
 .menu-item {
@@ -233,4 +218,109 @@ body {
 .menu-item:disabled {
   color: #bbb;
   cursor: default;
+}
+
+/* Text input for editing */
+.card-text-input {
+  width: 100%;
+  min-width: 120px;
+  min-height: 40px;
+  padding: 12px 16px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: inherit;
+}
+
+.card-placeholder-text {
+  color: #999;
+  font-style: italic;
+}
+
+/* Dark mode toggle */
+.dark-mode-toggle {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #888;
+  transition: background 150ms ease, color 150ms ease;
+  z-index: 1000;
+}
+
+.dark-mode-toggle:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #555;
+}
+
+/* Dark mode */
+body.dark {
+  background-color: #1a1a1a;
+  color: #e5e5e5;
+}
+
+body.dark .canvas-container {
+  background-color: #1a1a1a;
+}
+
+body.dark .card-selected {
+  outline-color: rgba(200, 200, 200, 0.4);
+}
+
+body.dark .resize-handle::before {
+  background: rgba(200, 200, 200, 0.5);
+}
+
+body.dark .card-link {
+  color: #7eb3e5;
+}
+
+body.dark .menu-dropdown {
+  background: #2a2a2a;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+body.dark .menu-item {
+  color: #e5e5e5;
+}
+
+body.dark .menu-item:hover:not(:disabled) {
+  background: #3a3a3a;
+}
+
+body.dark .menu-line {
+  background: #666;
+}
+
+body.dark .menu-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+body.dark .hint-text {
+  color: #555;
+}
+
+body.dark .dark-mode-toggle {
+  color: #888;
+}
+
+body.dark .dark-mode-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ccc;
+}
+
+body.dark .card-placeholder-text {
+  color: #666;
 }

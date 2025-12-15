@@ -82,33 +82,18 @@ export function createCanvasController(
         }
     }
 
-    // Wheel event handler - unified for mouse and trackpad
+    // Wheel event handler - Figma-like behavior
+    // ctrlKey (pinch gesture) = zoom, otherwise = pan
     function handleWheel(e: WheelEvent) {
         e.preventDefault();
 
-        // INTENT DETECTION:
-        // - ctrlKey = pinch gesture on trackpad (macOS/Chrome) → ZOOM
-        // - deltaX !== 0 = horizontal scroll = two-finger pan → PAN
-        // - Pure vertical scroll without ctrlKey:
-        //   - deltaMode === 1 (DOM_DELTA_LINE) = mouse wheel → ZOOM
-        //   - deltaMode === 0 (DOM_DELTA_PIXEL) = trackpad scroll → PAN
-
-        const isZoomIntent = e.ctrlKey || e.metaKey || e.deltaMode === 1;
-
-        if (isZoomIntent) {
-            // ZOOM
-            // Use smaller multiplier for smoother zoom
-            // Negative deltaY = zoom in, positive = zoom out
-            const zoomSpeed = e.ctrlKey ? 0.01 : 0.002; // Pinch vs wheel
+        if (e.ctrlKey || e.metaKey) {
+            // Pinch-to-zoom on trackpad (or Ctrl+scroll on mouse)
+            const zoomSpeed = 0.008;
             const delta = -e.deltaY * zoomSpeed;
-
-            pendingZoom = {
-                delta,
-                centerX: e.clientX,
-                centerY: e.clientY,
-            };
+            pendingZoom = { delta, centerX: e.clientX, centerY: e.clientY };
         } else {
-            // PAN - two-finger scroll on trackpad
+            // Two-finger scroll on trackpad OR mouse wheel = pan
             pendingPanX -= e.deltaX;
             pendingPanY -= e.deltaY;
         }

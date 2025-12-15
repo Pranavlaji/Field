@@ -33,6 +33,28 @@ function fileToDataUrl(file: File | Blob): Promise<string> {
     });
 }
 
+// Get image dimensions from data URL
+function getImageDimensions(dataUrl: string): Promise<{ w: number; h: number }> {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            // Constrain to max dimensions
+            let w = img.naturalWidth;
+            let h = img.naturalHeight;
+            const maxW = 500;
+            const maxH = 400;
+            if (w > maxW || h > maxH) {
+                const ratio = Math.min(maxW / w, maxH / h);
+                w = Math.round(w * ratio);
+                h = Math.round(h * ratio);
+            }
+            resolve({ w, h });
+        };
+        img.onerror = () => resolve({ w: 300, h: 200 }); // Fallback size
+        img.src = dataUrl;
+    });
+}
+
 export function createPasteHandler(
     screenToCanvas: (screenX: number, screenY: number) => { x: number; y: number },
     onPaste: PasteCallback,
@@ -61,12 +83,14 @@ export function createPasteHandler(
                 if (file.type.startsWith('image/')) {
                     e.preventDefault();
                     fileToDataUrl(file)
-                        .then((dataUrl) => {
+                        .then(async (dataUrl) => {
+                            const size = await getImageDimensions(dataUrl);
                             const card: Card = {
                                 id: uuidv4(),
                                 type: 'image',
                                 content: dataUrl,
                                 position: { x: canvasPos.x, y: canvasPos.y },
+                                size,
                                 createdAt: Date.now(),
                             };
                             onPaste(card);
@@ -86,12 +110,14 @@ export function createPasteHandler(
                     const blob = item.getAsFile();
                     if (blob) {
                         fileToDataUrl(blob)
-                            .then((dataUrl) => {
+                            .then(async (dataUrl) => {
+                                const size = await getImageDimensions(dataUrl);
                                 const card: Card = {
                                     id: uuidv4(),
                                     type: 'image',
                                     content: dataUrl,
                                     position: { x: canvasPos.x, y: canvasPos.y },
+                                    size,
                                     createdAt: Date.now(),
                                 };
                                 onPaste(card);
@@ -144,12 +170,14 @@ export function createPasteHandler(
             if (file.type.startsWith('image/')) {
                 const pos = { ...canvasPos };
                 fileToDataUrl(file)
-                    .then((dataUrl) => {
+                    .then(async (dataUrl) => {
+                        const size = await getImageDimensions(dataUrl);
                         const card: Card = {
                             id: uuidv4(),
                             type: 'image',
                             content: dataUrl,
                             position: pos,
+                            size,
                             createdAt: Date.now(),
                         };
                         onPaste(card);
