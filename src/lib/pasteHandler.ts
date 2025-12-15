@@ -33,6 +33,42 @@ function fileToDataUrl(file: File | Blob): Promise<string> {
     });
 }
 
+// Get image dimensions from data URL
+// Returns both natural size (for scaling calculations) and initial display size (constrained)
+function getImageDimensions(dataUrl: string): Promise<{
+    naturalSize: { w: number; h: number };
+    displaySize: { w: number; h: number };
+}> {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const naturalW = img.naturalWidth;
+            const naturalH = img.naturalHeight;
+
+            // Constrain initial display to max dimensions
+            let displayW = naturalW;
+            let displayH = naturalH;
+            const maxW = 500;
+            const maxH = 400;
+            if (displayW > maxW || displayH > maxH) {
+                const ratio = Math.min(maxW / displayW, maxH / displayH);
+                displayW = Math.round(displayW * ratio);
+                displayH = Math.round(displayH * ratio);
+            }
+
+            resolve({
+                naturalSize: { w: naturalW, h: naturalH },
+                displaySize: { w: displayW, h: displayH },
+            });
+        };
+        img.onerror = () => resolve({
+            naturalSize: { w: 300, h: 200 },
+            displaySize: { w: 300, h: 200 },
+        });
+        img.src = dataUrl;
+    });
+}
+
 export function createPasteHandler(
     screenToCanvas: (screenX: number, screenY: number) => { x: number; y: number },
     onPaste: PasteCallback,
@@ -61,12 +97,15 @@ export function createPasteHandler(
                 if (file.type.startsWith('image/')) {
                     e.preventDefault();
                     fileToDataUrl(file)
-                        .then((dataUrl) => {
+                        .then(async (dataUrl) => {
+                            const { naturalSize, displaySize } = await getImageDimensions(dataUrl);
                             const card: Card = {
                                 id: uuidv4(),
                                 type: 'image',
                                 content: dataUrl,
                                 position: { x: canvasPos.x, y: canvasPos.y },
+                                size: displaySize,
+                                naturalSize,
                                 createdAt: Date.now(),
                             };
                             onPaste(card);
@@ -86,12 +125,15 @@ export function createPasteHandler(
                     const blob = item.getAsFile();
                     if (blob) {
                         fileToDataUrl(blob)
-                            .then((dataUrl) => {
+                            .then(async (dataUrl) => {
+                                const { naturalSize, displaySize } = await getImageDimensions(dataUrl);
                                 const card: Card = {
                                     id: uuidv4(),
                                     type: 'image',
                                     content: dataUrl,
                                     position: { x: canvasPos.x, y: canvasPos.y },
+                                    size: displaySize,
+                                    naturalSize,
                                     createdAt: Date.now(),
                                 };
                                 onPaste(card);
@@ -144,12 +186,15 @@ export function createPasteHandler(
             if (file.type.startsWith('image/')) {
                 const pos = { ...canvasPos };
                 fileToDataUrl(file)
-                    .then((dataUrl) => {
+                    .then(async (dataUrl) => {
+                        const { naturalSize, displaySize } = await getImageDimensions(dataUrl);
                         const card: Card = {
                             id: uuidv4(),
                             type: 'image',
                             content: dataUrl,
                             position: pos,
+                            size: displaySize,
+                            naturalSize,
                             createdAt: Date.now(),
                         };
                         onPaste(card);

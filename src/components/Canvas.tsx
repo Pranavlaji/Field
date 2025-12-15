@@ -1,11 +1,15 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useCardStore } from '../store/cardStore';
+import { useThemeStore } from '../store/themeStore';
 import { createCanvasController, type CanvasController } from '../lib/canvasController';
 import { createDragHandler, type DragHandler } from '../lib/dragHandler';
 import { createResizeHandler, type ResizeHandler } from '../lib/resizeHandler';
 import { createPasteHandler, type PasteHandler } from '../lib/pasteHandler';
 import { Card } from './Card';
 import { Menu } from './Menu';
+import { FontSizeControl } from './FontSizeControl';
+import { v4 as uuidv4 } from 'uuid';
+import type { Card as CardType } from '../types';
 
 export function Canvas() {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -15,13 +19,24 @@ export function Canvas() {
     const resizeHandlerRef = useRef<ResizeHandler | null>(null);
     const pasteHandlerRef = useRef<PasteHandler | null>(null);
 
+    const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+    const [editingCardId, setEditingCardId] = useState<string | null>(null);
+
     const cards = useCardStore((s) => s.cards);
     const isHydrated = useCardStore((s) => s.isHydrated);
     const hydrate = useCardStore((s) => s.hydrate);
     const addCard = useCardStore((s) => s.addCard);
     const updateCardPosition = useCardStore((s) => s.updateCardPosition);
     const updateCardSize = useCardStore((s) => s.updateCardSize);
+    const updateCardContent = useCardStore((s) => s.updateCardContent);
     const removeCard = useCardStore((s) => s.removeCard);
+
+    const isDark = useThemeStore((s) => s.isDark);
+
+    // Apply dark mode class to body
+    useEffect(() => {
+        document.body.classList.toggle('dark', isDark);
+    }, [isDark]);
 
     // Initialize on mount
     useEffect(() => {
@@ -32,28 +47,24 @@ export function Canvas() {
     useEffect(() => {
         if (!containerRef.current || !transformRef.current) return;
 
-        // Canvas controller for pan/zoom
         const canvasController = createCanvasController(
             containerRef.current,
             transformRef.current
         );
         canvasControllerRef.current = canvasController;
 
-        // Drag handler
         const dragHandler = createDragHandler(
             (cardId, x, y) => updateCardPosition(cardId, x, y),
             () => canvasController.getScale()
         );
         dragHandlerRef.current = dragHandler;
 
-        // Resize handler
         const resizeHandler = createResizeHandler(
-            (cardId, w, h) => updateCardSize(cardId, w, h),
+            (cardId, x, y, w, h) => useCardStore.getState().updateCardGeometry(cardId, x, y, w, h),
             () => canvasController.getScale()
         );
         resizeHandlerRef.current = resizeHandler;
 
-        // Paste handler (with drag-drop support)
         const pasteHandler = createPasteHandler(
             (screenX, screenY) => canvasController.screenToCanvas(screenX, screenY),
             (card) => addCard(card),
@@ -69,7 +80,84 @@ export function Canvas() {
         };
     }, [addCard, updateCardPosition, updateCardSize]);
 
-    // Drag handler registration callbacks
+    // Keyboard handler for delete
+    useEffect(() => {
+        function handleKeyDown(e: KeyboardEvent) {
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                // Don't delete if typing in an input
+                if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+                    return;
+                }
+                if (selectedCardId && !editingCardId) {
+                    e.preventDefault();
+                    removeCard(selectedCardId);
+                    setSelectedCardId(null);
+                }
+            }
+            // Escape to deselect
+            if (e.key === 'Escape') {
+                setSelectedCardId(null);
+                setEditingCardId(null);
+            }
+        }
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedCardId, editingCardId, removeCard]);
+
+    // Double-click to create text card
+    const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+        // Only on canvas background
+        const target = e.target as HTMLElement;
+        if (target !== containerRef.current && target !== transformRef.current) {
+            return;
+        }
+
+        const canvasPos = canvasControllerRef.current?.screenToCanvas(e.clientX, e.clientY);
+        if (!canvasPos) return;
+
+        const newCard: CardType = {
+            id: uuidv4(),
+            type: 'text',
+            content: '',
+            position: { x: canvasPos.x, y: canvasPos.y },
+            createdAt: Date.now(),
+        };
+        addCard(newCard);
+        setSelectedCardId(newCard.id);
+        setEditingCardId(newCard.id);
+    }, [addCard]);
+
+    // Click to select card
+    const handleCardSelect = useCallback((cardId: string) => {
+        setSelectedCardId(cardId);
+    }, []);
+
+    // Sync selection state with resize handler
+    useEffect(() => {
+        resizeHandlerRef.current?.setSelected(selectedCardId);
+    }, [selectedCardId]);
+
+    // Click canvas to deselect
+    const handleCanvasClick = useCallback((e: React.MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (target === containerRef.current || target === transformRef.current) {
+            setSelectedCardId(null);
+            setEditingCardId(null);
+        }
+    }, []);
+
+    // Card content update handler
+    const handleCardContentUpdate = useCallback((cardId: string, content: string) => {
+        updateCardContent(cardId, content);
+    }, [updateCardContent]);
+
+    // Stop editing
+    const handleCardBlur = useCallback(() => {
+        setEditingCardId(null);
+    }, []);
+
+    // Drag handler registration
     const registerDrag = useCallback((element: HTMLElement, cardId: string) => {
         dragHandlerRef.current?.register(element, cardId);
     }, []);
@@ -78,7 +166,6 @@ export function Canvas() {
         dragHandlerRef.current?.unregister(cardId);
     }, []);
 
-    // Resize handler registration callbacks
     const registerResize = useCallback((element: HTMLElement, cardId: string) => {
         resizeHandlerRef.current?.register(element, cardId);
     }, []);
@@ -88,12 +175,22 @@ export function Canvas() {
     }, []);
 
     return (
-        <div className="canvas-container" ref={containerRef}>
+        <div
+            className="canvas-container"
+            ref={containerRef}
+            onClick={handleCanvasClick}
+            onDoubleClick={handleDoubleClick}
+        >
             <div className="canvas-transform" ref={transformRef}>
                 {cards.map((card) => (
                     <Card
                         key={card.id}
                         card={card}
+                        isSelected={selectedCardId === card.id}
+                        isEditing={editingCardId === card.id}
+                        onSelect={handleCardSelect}
+                        onContentUpdate={handleCardContentUpdate}
+                        onBlur={handleCardBlur}
                         registerDrag={registerDrag}
                         unregisterDrag={unregisterDrag}
                         registerResize={registerResize}
@@ -103,12 +200,13 @@ export function Canvas() {
                 ))}
             </div>
 
-            {/* Hint text - only show when empty and hydrated */}
+            {/* Hint text */}
             {isHydrated && cards.length === 0 && (
-                <div className="hint-text">paste or drop anything</div>
+                <div className="hint-text">paste anything</div>
             )}
 
             <Menu />
+            <FontSizeControl card={cards.find(c => c.id === selectedCardId) || null} />
         </div>
     );
 }
